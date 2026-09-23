@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>LDL-C Cut-off Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+:root {
+  --ground: #F4F6F4;
+  --surface: #FFFFFF;
+  --ink: #17201E;
+  --ink-2: #3D4946;
+  --muted: #5F6C68;
+  --rule: #D6DCD9;
+  --rule-soft: #E7EBE9;
+  --accent: #1D5B70;
+  --accent-soft: #E3EEF1;
+  --code-bg: #EDF1EF;
+  --a-neg: #1F7AA8;
+  --a-pos: #C2562F;
+  --sev-high: #B42318;
+  --sev-high-bg: #FDECEA;
+  --sev-med: #9A5A06;
+  --sev-med-bg: #FDF1DC;
+  --sev-low: #44700E;
+  --sev-low-bg: #EEF5E2;
+  --ok: #2B6E4F;
+  --ok-bg: #E4F2EA;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #111615;
+    --surface: #182120;
+    --ink: #E5ECEA;
+    --ink-2: #C3CECB;
+    --muted: #97A5A1;
+    --rule: #2F3A38;
+    --rule-soft: #243030;
+    --accent: #83C3D8;
+    --accent-soft: #1B3038;
+    --code-bg: #1F2A29;
+    --a-neg: #3C9FD0;
+    --a-pos: #D0673B;
+    --sev-high: #F7867A;
+    --sev-high-bg: #3A1D1A;
+    --sev-med: #F2B75B;
+    --sev-med-bg: #362713;
+    --sev-low: #A9D475;
+    --sev-low-bg: #243016;
+    --ok: #7FD1A6;
+    --ok-bg: #16302A;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #111615;
+  --surface: #182120;
+  --ink: #E5ECEA;
+  --ink-2: #C3CECB;
+  --muted: #97A5A1;
+  --rule: #2F3A38;
+  --rule-soft: #243030;
+  --accent: #83C3D8;
+  --accent-soft: #1B3038;
+  --code-bg: #1F2A29;
+  --a-neg: #3C9FD0;
+  --a-pos: #D0673B;
+  --sev-high: #F7867A;
+  --sev-high-bg: #3A1D1A;
+  --sev-med: #F2B75B;
+  --sev-med-bg: #362713;
+  --sev-low: #A9D475;
+  --sev-low-bg: #243016;
+  --ok: #7FD1A6;
+  --ok-bg: #16302A;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  padding-inline: 16px;
+  padding-block: 0 72px;
+}
+.page { max-width: 820px; margin: 0 auto; }
+
+/* Header */
+.masthead { padding-block: 44px 28px; border-bottom: 1px solid var(--rule); display: grid; gap: 14px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin: 0; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(30px, 5.2vw, 44px); line-height: 1.08; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+.lede { font-size: 17.5px; color: var(--ink-2); max-width: 66ch; margin: 0; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 13.5px; color: var(--muted); margin: 0; padding: 0; list-style: none; }
+.meta b { color: var(--ink-2); font-weight: 500; }
+
+/* Verdicts */
+.verdicts { margin-top: 32px; display: grid; gap: 0; border: 1px solid var(--rule); background: var(--surface); border-radius: 6px; overflow: hidden; }
+.verdict { display: grid; grid-template-columns: 11.5rem 1fr; gap: 6px 20px; padding: 18px 20px; border-top: 1px solid var(--rule-soft); }
+.verdict:first-child { border-top: 0; }
+.verdict .q { font-family: var(--font-display); font-weight: 600; font-size: 15.5px; line-height: 1.35; color: var(--ink); }
+.verdict .q small { display: block; font-family: var(--font-mono); font-weight: 400; font-size: 12px; color: var(--muted); letter-spacing: 0.03em; margin-bottom: 2px; }
+.verdict .a { font-size: 15px; color: var(--ink-2); }
+.verdict .a strong { color: var(--ink); font-weight: 600; }
+@media (max-width: 620px) { .verdict { grid-template-columns: 1fr; } }
+
+/* Sections */
+h2 { font-family: var(--font-display); font-weight: 700; font-size: 27px; line-height: 1.15; margin: 64px 0 6px; text-wrap: balance; }
+h2 .num { font-family: var(--font-mono); font-weight: 500; font-size: 15px; color: var(--accent); margin-right: 10px; vertical-align: 3px; }
+h3 { font-family: var(--font-display); font-weight: 600; font-size: 19px; margin: 36px 0 8px; text-wrap: balance; }
+.section-lede { color: var(--muted); margin: 0 0 8px; font-size: 15px; }
+p, li { max-width: 68ch; }
+p { margin: 10px 0; }
+ul, ol { padding-left: 1.3em; margin: 10px 0; }
+li { margin: 6px 0; }
+code, .mono { font-family: var(--font-mono); font-size: 0.87em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+a { color: var(--accent); }
+.num-cell, td.n { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13.5px; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; margin: 16px 0; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; line-height: 1.45; }
+th, td { text-align: left; padding: 9px 12px; border-top: 1px solid var(--rule-soft); vertical-align: top; }
+thead th { border-top: 0; font-family: var(--font-display); font-weight: 600; font-size: 13.5px; color: var(--muted); background: var(--surface); white-space: nowrap; }
+td.n, th.n { text-align: right; white-space: nowrap; }
+tr.emph td { background: var(--accent-soft); }
+td .strong { font-weight: 600; color: var(--ink); }
+
+/* Pills */
+.pill { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 11.5px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.pill.high { color: var(--sev-high); background: var(--sev-high-bg); }
+.pill.med { color: var(--sev-med); background: var(--sev-med-bg); }
+.pill.low { color: var(--sev-low); background: var(--sev-low-bg); }
+.pill.fixed { color: var(--ok); background: var(--ok-bg); }
+
+/* Callout for the key finding */
+.keyfinding { margin: 22px 0; padding: 18px 20px; background: var(--surface); border: 1px solid var(--sev-high); border-radius: 6px; display: grid; gap: 10px; }
+.keyfinding .head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 600; font-size: 17px; }
+.keyfinding p { margin: 0; }
+.censor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.censor > div { border: 1px solid var(--rule); border-radius: 5px; padding: 12px 14px; }
+.censor .big { font-family: var(--font-mono); font-size: 28px; font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.censor .lbl { font-size: 13.5px; color: var(--muted); }
+
+/* Chart */
+.chart { margin: 18px 0; padding: 18px 20px 14px; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; }
+.chart-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 20px; margin-bottom: 12px; }
+.chart-title { font-family: var(--font-display); font-weight: 600; font-size: 15.5px; margin: 0; }
+.legend { display: flex; gap: 16px; font-size: 13px; color: var(--ink-2); margin: 0; padding: 0; list-style: none; }
+.legend li { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+.swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+.panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 28px; }
+@media (max-width: 680px) { .panels { grid-template-columns: 1fr; } }
+.panel-title { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.bars { display: grid; gap: 7px; }
+.bar-row { display: grid; grid-template-columns: 7.2rem 1fr; gap: 10px; align-items: center; }
+.bar-label { font-size: 12.5px; line-height: 1.2; color: var(--ink-2); }
+.bar-label span { display: block; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.bar-track { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.stack { display: flex; gap: 2px; height: 18px; }
+.seg { height: 100%; min-width: 2px; cursor: default; outline-offset: 2px; }
+.seg:first-child { border-radius: 3px 0 0 3px; }
+.seg:last-child { border-radius: 0 4px 4px 0; }
+.seg:only-child { border-radius: 3px 4px 4px 3px; }
+.seg.neg { background: var(--a-neg); }
+.seg.pos { background: var(--a-pos); }
+.seg:hover, .seg:focus-visible { filter: brightness(1.12); }
+.seg:focus-visible { outline: 2px solid var(--ink); }
+.bar-n { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bar-n.warn { color: var(--sev-high); font-weight: 500; }
+.chart-note { font-size: 13px; color: var(--muted); margin: 14px 0 0; }
+.tip { position: fixed; z-index: 10; pointer-events: none; background: var(--ink); color: var(--ground); font-size: 12.5px; line-height: 1.35; padding: 7px 10px; border-radius: 4px; max-width: 240px; }
+.tip b { font-weight: 600; }
+
+/* Code block */
+pre { background: var(--code-bg); border-radius: 5px; padding: 12px 14px; overflow-x: auto; font-family: var(--font-mono); font-size: 13px; line-height: 1.55; margin: 14px 0; }
+pre code { background: none; padding: 0; font-size: inherit; }
+
+.footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--rule); font-size: 13.5px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+<header class="masthead">
+  <p class="eyebrow">ADNI · LDL-C, amyloid and cognition · Audit, September 2026</p>
+  <h1>LDL-C cut-off audit</h1>
+  <p class="lede">An audit of the <code>LDL-analysis-</code> code and statistics against Braian's three-item checklist. It also includes a bug review of the code itself.</p>
+  <ul class="meta">
+    <li><b>Cohort</b> 347 participants · 1819 visits · age ≥ 65</li>
+    <li><b>Clinical status</b> CN 259 · SMC 88 (unimpaired only)</li>
+    <li><b>Amyloid</b> A− 253 · A+ 94</li>
+    <li><b>Branch</b> <span class="mono">audit_v1-202609</span></li>
+  </ul>
+</header>
+
+<section class="verdicts" aria-label="Answers to the checklist">
+  <div class="verdict">
+    <div class="q"><small>Checklist 1</small>Code audit</div>
+    <div class="a"><strong>Fixed and reproducible.</strong> The pipeline now reproduces the original script to machine precision (max coefficient difference 2.5 × 10⁻¹²). A code review found 7 bugs, all fixed; none of them changed the current results.</div>
+  </div>
+  <div class="verdict">
+    <div class="q"><small>Checklist 2</small>3 cut-offs instead of 5?</div>
+    <div class="a"><strong>Yes, and 3 groups fit better than 5.</strong> Merging the classes at or above 130 mg/dL (&lt; 2.6 / 2.6–3.3 / ≥ 3.3 mmol/L) loses no fit (LRT p = 0.89–0.99). It is now a sensitivity run. Continuous LDL-C fits best of all.</div>
+  </div>
+  <div class="verdict">
+    <div class="q"><small>Checklist 3</small>Are the tests appropriate?</div>
+    <div class="a"><strong>Mostly, with three fixes needed.</strong> The Aβ42 model drops censored <code>&gt;1700</code> values, almost all from A− participants. The figure bars use tests that differ from the ones reported. The 5-group interaction relies on cells of 1–3 people.</div>
+  </div>
+  <div class="verdict">
+    <div class="q"><small>What the data say</small>Findings</div>
+    <div class="a"><strong>Null.</strong> No LDL-C × time or LDL-C × amyloid × time effect reaches p &lt; 0.05, under any grouping or with continuous LDL-C.</div>
+  </div>
+</section>
+
+<!-- ============ 1 ============ -->
+<h2><span class="num">1</span>Code audit</h2>
+<p class="section-lede">The original script, the refactor, and what an independent bug review of the refactor turned up.</p>
+
+<h3>Problems in the original script</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Problem</th><th>Consequence</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td>Hard-coded Windows path to the data file</td><td>Ran on one machine only</td><td><span class="pill fixed">Fixed</span></td></tr>
+    <tr><td><code>library(lsmeans)</code>, <code>tidymv</code>, <code>medmod</code>: never used, not installed here</td><td>Script stopped at line 17 on a fresh machine</td><td><span class="pill fixed">Fixed</span></td></tr>
+    <tr><td>27 packages loaded, about 8 used</td><td>Slow start-up; results depend on load order</td><td><span class="pill fixed">Fixed</span></td></tr>
+    <tr><td><code>install.packages()</code> inside the analysis</td><td>Silent, unpinned install mid-run</td><td><span class="pill fixed">Fixed</span></td></tr>
+    <tr><td>LDL-C <code>cut()</code> repeated three times, labels copied by hand</td><td>Copies could drift apart</td><td><span class="pill fixed">Fixed</span></td></tr>
+    <tr><td>Figures and tables printed, never saved</td><td>No reproducible outputs</td><td><span class="pill fixed">Fixed</span></td></tr>
+    <tr><td>Censored strings (<code>"&gt;1700"</code>, <code>"&lt;8"</code>) turned into NA by <code>as.numeric()</code></td><td>Silent data loss; see §3.4</td><td><span class="pill high">Decision needed</span></td></tr>
+  </tbody>
+</table></div>
+<p>The refactor adds:</p>
+<ul>
+  <li>one config file holding every path, cut-off, covariate and model;</li>
+  <li>11 function modules and two runners;</li>
+  <li><code>renv</code> package pinning;</li>
+  <li>gitignored <code>Data/</code> and <code>Outputs/</code> folders. The ADNI data is never committed.</li>
+</ul>
+
+<h3>Bugs found by the code review (all fixed)</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Bug</th><th>When it bites</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td>Runner crashed when run line by line</td><td>RStudio “Run all”, or piping into R</td><td>Safe frame search, with a working-directory fallback</td></tr>
+    <tr><td><code>--file=</code> beat the sourced file's path</td><td>A master script that <code>source()</code>s a runner</td><td>The sourced file is checked first</td></tr>
+    <tr><td>Model reference level reordered the figure labels</td><td>A non-default reference: “adjacent” bars compared non-adjacent groups</td><td>Figure labels keep clinical order</td></tr>
+    <tr><td>One empty group removed <em>every</em> significance bar</td><td>A subgroup with 0–1 people in “Very high”</td><td>Untestable pairs are skipped, with a warning</td></tr>
+    <tr><td>Bar heights fixed at 4 values</td><td>Any 3-group scheme</td><td>Heights computed per comparison</td></tr>
+    <tr><td>Literal <code>≥</code> in labels</td><td>Non-UTF-8 locale (older R on Windows)</td><td><code>&#92;u2265</code> escape</td></tr>
+    <tr><td>LDL-C coerced after the missing-value filter</td><td>A text LDL-C value would stay in as an NA group</td><td>Coerce, then filter</td></tr>
+  </tbody>
+</table></div>
+
+<h3>Kept from the original on purpose (needs a decision)</h3>
+<ul>
+  <li><strong>Figure 1f clips its y-axis</strong> with <code>scale_y_continuous(limits = c(-8, 8))</code>. That removes one participant <em>before</em> the box statistics and Wilcoxon bars are computed. Zooming with <code>coord_cartesian()</code> would keep them in.</li>
+  <li><strong>The mmol/L cut-points are rounded.</strong> 100 / 130 / 160 / 190 mg/dL convert exactly to 2.59 / 3.36 / 4.14 / 4.91 mmol/L, and 3.4 is the usual convention for 130 mg/dL. Six participants change class under the exact conversion, four of them in [3.3, 3.36).</li>
+  <li><strong>Table 1 uses different CSF columns from the tests.</strong> It uses <code>ABETA_to_use</code> / <code>PTAU_to_use</code>, the tests use <code>*_bl_to_use</code>. The values agree, but the Table 1 columns are missing for 10 participants, so it describes 337 people where the tests use 347.</li>
+  <li><strong>Five baseline LDL-C values are below 0.04 mmol/L</strong> (the next lowest is 0.14). That is physiologically implausible, so check them at source.</li>
+</ul>
+
+<!-- ============ 2 ============ -->
+<h2><span class="num">2</span>Three cut-offs instead of five?</h2>
+<p class="section-lede">Baseline participants per LDL-C group, split by amyloid status. The longitudinal models estimate one slope per cell.</p>
+
+<figure class="chart" id="cells-chart" aria-labelledby="cells-title">
+  <div class="chart-head">
+    <p class="chart-title" id="cells-title">Participants per LDL-C group</p>
+    <ul class="legend">
+      <li><span class="swatch" style="background: var(--a-neg)"></span>A−</li>
+      <li><span class="swatch" style="background: var(--a-pos)"></span>A+</li>
+    </ul>
+  </div>
+  <div class="panels">
+    <div>
+      <p class="panel-title">5 groups · NCEP (primary)</p>
+      <div class="bars" data-scheme="ncep5"></div>
+    </div>
+    <div>
+      <p class="panel-title">3 groups · ncep3 (sensitivity)</p>
+      <div class="bars" data-scheme="ncep3"></div>
+    </div>
+  </div>
+  <p class="chart-note">Bars share one scale (0–184 participants). Totals shown in red have fewer than 12 participants.</p>
+</figure>
+
+<p>With five groups, “Very high” holds 1 A− and 2 A+ participants. The three-way interaction then estimates one slope from one person and another from two. That is why the Very-high ribbon in the trajectory figure spans the whole y-axis.</p>
+
+<h3>Candidate 3-group schemes</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Scheme</th><th>Cut-points (mmol/L)</th><th class="n">Baseline n</th><th class="n">A+ n</th><th>Assessment</th></tr></thead>
+  <tbody>
+    <tr class="emph"><td><span class="strong">ncep3 (recommended)</span></td><td class="n">&lt;2.6 / 2.6–3.3 / ≥3.3</td><td class="n">184 / 109 / 54</td><td class="n">50 / 26 / 18</td><td>Uses NCEP classes; ≥130 mg/dL is a standard clinical threshold</td></tr>
+    <tr><td>NCEP, merge the top two</td><td class="n">&lt;2.6 / 2.6–4.1 / ≥4.1</td><td class="n">184 / 152 / 11</td><td class="n">50 / 39 / 5</td><td>Top group is still too small</td></tr>
+    <tr><td>Treatment target</td><td class="n">&lt;1.8 / 1.8–2.6 / ≥2.6</td><td class="n">60 / 124 / 163</td><td class="n">18 / 32 / 44</td><td>Asks a different question (treated to the 70 mg/dL target)</td></tr>
+    <tr><td>Tertiles</td><td class="n">&lt;2.19 / 2.19–2.81 / ≥2.81</td><td class="n">116 / 115 / 116</td><td class="n">31 / 31 / 32</td><td>Balanced, but specific to this sample and not clinically interpretable</td></tr>
+  </tbody>
+</table></div>
+
+<h3>Does merging lose information?</h3>
+<p>The likelihood-ratio test compares the nested 3-group model with the 5-group model, using ML fits with the same covariates and random effects. A high p means the two extra groups add nothing. ΔAIC and ΔBIC are measured from the best model for each outcome, so lower is better.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Outcome</th><th class="n">LRT ncep3 vs 5 groups</th><th class="n">ΔAIC 5 groups</th><th class="n">ΔAIC ncep3</th><th class="n">ΔAIC continuous</th><th class="n">ΔBIC 5 groups</th><th class="n">ΔBIC ncep3</th></tr></thead>
+  <tbody>
+    <tr><td>mPACCtrailsB</td><td class="n">χ² 1.62, df 8, p = 0.99</td><td class="n">19.3</td><td class="n">5.0</td><td class="n">0</td><td class="n">85.4</td><td class="n">27.0</td></tr>
+    <tr><td>CSF p-tau</td><td class="n">χ² 3.56, df 8, p = 0.89</td><td class="n">13.5</td><td class="n">1.1</td><td class="n">0</td><td class="n">68.1</td><td class="n">19.3</td></tr>
+    <tr><td>CSF Aβ42</td><td class="n">χ² 2.33, df 8, p = 0.97</td><td class="n">23.9</td><td class="n">10.2</td><td class="n">0</td><td class="n">75.5</td><td class="n">27.4</td></tr>
+  </tbody>
+</table></div>
+<ul>
+  <li><strong>Three cut-offs are possible, and better.</strong> The 5-group model never outperforms the 3-group one and costs 8 extra parameters.</li>
+  <li><strong>Continuous LDL-C has the lowest AIC and BIC for every outcome.</strong> A natural spline with 3 df does not beat the linear term, so there is no threshold effect for grouping to capture. Continuous LDL-C is the strongest primary exposure. Clinical groups remain useful for description and figures.</li>
+</ul>
+
+<h3>Now in the pipeline</h3>
+<p>The 3-group scheme runs as a sensitivity analysis and never overwrites the primary 5-group outputs:</p>
+<pre><code>LDL_SCHEME=ncep3 Rscript Scripts/run_cross_sectional.R   # → Outputs/cross_sectional_ldl3/
+LDL_SCHEME=ncep3 Rscript Scripts/run_longitudinal.R      # → Outputs/longitudinal_ldl3/</code></pre>
+<p>The ncep3 results are as null as the 5-group ones:</p>
+<ul>
+  <li>Baseline Kruskal–Wallis: p = 0.78 (Aβ42), 0.19 (p-tau), 0.87 (mPACC).</li>
+  <li>LDL-C × amyloid × time: p = 0.48 (mPACC), 0.21 (p-tau), 0.31 (Aβ42).</li>
+</ul>
+
+<!-- ============ 3 ============ -->
+<h2><span class="num">3</span>Are the statistical tests appropriate?</h2>
+
+<h3>3.1 Baseline comparisons: Kruskal–Wallis + Dunn</h3>
+<p><strong>Appropriate as a first look.</strong> The outcomes are skewed, and 91 participants (26%) sit exactly at the Aβ42 ceiling of 1700 pg/mL. That rules out a plain ANOVA, and a rank test handles the ties. Three caveats:</p>
+<ul>
+  <li><strong>The tests are unadjusted.</strong> The baseline comparisons ignore age, sex, APOE ε4 and education, although every longitudinal model includes them. An adjusted linear model gives the same answer: group F-test p = 0.71 / 0.56 / 0.71, continuous LDL-C p = 0.73 / 0.21 / 0.30. The CSF residuals are non-normal, so any adjusted results should use log(p-tau) or robust standard errors.</li>
+  <li><strong>The groups are ordered, but the tests ignore the order.</strong> A trend test is more powerful for a dose–response question. Spearman on continuous LDL-C gives ρ = −0.01 / 0.04 / −0.04, all p &gt; 0.49.</li>
+  <li><strong>Dunn p-values are one-sided.</strong> <code>dunn.test</code> reports Pr(Z ≥ |z|) and rejects at α/2. Double them, or use <code>altp = TRUE</code>, before reporting them as ordinary p-values.</li>
+</ul>
+
+<h3>3.2 Significance bars in Figures 1d–1f</h3>
+<p><strong>Not appropriate as they stand.</strong> The bars come from unadjusted two-group Wilcoxon tests between adjacent groups. The text reports Bonferroni-adjusted Dunn tests on pooled ranks, so a figure and its caption can disagree. Every bar currently reads NS either way (unadjusted p between 0.056 and 0.98). The mismatch would show as soon as one comparison crossed 0.05.</p>
+<p><strong>Recommendation:</strong> annotate the figures with the adjusted Dunn p-values, or drop the bars and put the omnibus test in the caption.</p>
+
+<h3>3.3 Longitudinal mixed models</h3>
+<p><strong>Well specified overall.</strong></p>
+<ul>
+  <li>A random intercept and slope per participant suits irregular, unbalanced visits (2–8 per person, median follow-up 4.7 years).</li>
+  <li>All six models converge and none is singular. The estimates agree with the <code>bobyqa</code> optimizer to 5 × 10⁻⁵.</li>
+  <li>The Satterthwaite type III tests from <code>lmerTest</code> are sound.</li>
+</ul>
+<p>Six issues remain:</p>
+<ol>
+  <li><strong>Sparse cells.</strong> The 5-group interaction relies on cells of 1–3 people (§2). This is the main reason to prefer 3 groups or continuous LDL-C.</li>
+  <li><strong>Multiplicity.</strong> Three outcomes × two exposures × four LDL-C terms give many tests. Pre-specify one primary test, for example LDL-C × amyloid × time on mPACC, and treat the rest as secondary.</li>
+  <li><strong>One nominal signal.</strong> In the p-tau model, the LDL-C group × amyloid term is p = 0.006 under ncep3 (p = 0.055 with 5 groups). It is a <em>baseline level</em> difference, not a slope. Among A+ participants, median baseline p-tau falls as LDL-C rises (30.4 → 27.3 → 23.4 pg/mL), while A− participants are flat. It does not survive Bonferroni across the 12 LDL-C terms (threshold 0.0042), has no time component, and could reflect statin use. Report it as exploratory at most.</li>
+  <li><strong>The Aβ42 model is partly circular.</strong> The amyloid modifier is defined from the p-tau/Aβ42 ratio, and the outcome is Aβ42 itself. The LDL-C × time terms stay interpretable, but the amyloid terms of this model do not.</li>
+  <li><strong>The random effects differ between models.</strong> The Aβ42 models use a random intercept only. If that was done for convergence, say so; otherwise use one structure for all three outcomes.</li>
+  <li><strong>Lipid-lowering treatment may confound LDL-C.</strong> The 55% of participants with hyperlipidaemia (<code>HLP</code>) have <em>lower</em> LDL-C (median 2.42 vs 2.78 mmol/L), which suggests statin treatment. Adjusting for <code>HLP</code> moves the interaction p-values by less than 0.01, but <code>HLP</code> is a weak proxy. ADNI medication records (RECCMEDS) would allow a proper adjustment or stratification.</li>
+</ol>
+
+<h3>3.4 Censored CSF values: the most important issue</h3>
+<div class="keyfinding">
+  <div class="head"><span class="pill high">High</span>The Aβ42 model loses the highest values, almost all from A− participants</div>
+  <p>The longitudinal <code>ABETA</code> column holds the string <code>"&gt;1700"</code> in 161 visits. <code>as.numeric()</code> turns them into missing values, and they drop out of the model. The model fits 544 of the 706 visits that carry an Aβ42 value.</p>
+  <div class="censor">
+    <div><div class="big">100 / 253</div><div class="lbl">A− participants with at least one <code>&gt;1700</code> visit (40%)</div></div>
+    <div><div class="big">1 / 94</div><div class="lbl">A+ participants with at least one <code>&gt;1700</code> visit (1%)</div></div>
+  </div>
+  <p>This missingness is not random. It biases the A− trajectories downward and distorts every A− vs A+ contrast in the Aβ42 model. The baseline column handles the same limit differently: it caps values at 1700 (91 participants). <code>PTAU</code> has the same problem with 7 <code>"&lt;8"</code> values.</p>
+</div>
+<p><strong>Options, in order of preference:</strong></p>
+<ol>
+  <li>A censored (Tobit) mixed model that treats <code>&gt;1700</code> as “at least 1700”, e.g. <code>GLMMadaptive::mixed_model(family = censored.normal())</code>.</li>
+  <li>Substitute the assay limit (1700, 200, 8) and add a sensitivity analysis. This is simple, and it matches how the baseline column already works.</li>
+  <li>Use uncapped values. 1700 pg/mL is the upper end of the Elecsys measuring range, so check whether the ADNI UPENN release carries values extrapolated beyond it.</li>
+</ol>
+<p>The pipeline now warns about the lost values on every run. It leaves them as they are until this is decided.</p>
+
+<!-- ============ 4 ============ -->
+<h2><span class="num">4</span>Priority recommendations</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Priority</th><th>Item</th><th>Section</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill high">High</span></td><td>Decide how to handle the censored Aβ42 / p-tau values; the current Aβ42 model is biased</td><td class="n">§3.4</td></tr>
+    <tr><td><span class="pill high">High</span></td><td>Choose the primary exposure: continuous LDL-C (best fit) or 3 groups; keep 5 groups descriptive</td><td class="n">§2</td></tr>
+    <tr><td><span class="pill high">High</span></td><td>Replace the unadjusted Wilcoxon bars with adjusted Dunn results; report two-sided p</td><td class="n">§3.1–3.2</td></tr>
+    <tr><td><span class="pill med">Medium</span></td><td>Pre-specify one primary test and treat the rest as secondary</td><td class="n">§3.3</td></tr>
+    <tr><td><span class="pill med">Medium</span></td><td>Statin use: merge ADNI medication records, then adjust or stratify</td><td class="n">§3.3</td></tr>
+    <tr><td><span class="pill med">Medium</span></td><td>Acknowledge that the amyloid terms of the Aβ42 model are circular</td><td class="n">§3.3</td></tr>
+    <tr><td><span class="pill med">Medium</span></td><td>Check the five LDL-C values below 0.04 mmol/L at source</td><td class="n">§1</td></tr>
+    <tr><td><span class="pill low">Low</span></td><td>Adjusted baseline models (log p-tau) as a supplement to Kruskal–Wallis</td><td class="n">§3.1</td></tr>
+    <tr><td><span class="pill low">Low</span></td><td>Figure 1f: zoom instead of clipping</td><td class="n">§1</td></tr>
+    <tr><td><span class="pill low">Low</span></td><td>Cut-point rounding (3.3 vs 3.36 / 3.4); one random-effects structure; Table 1 CSF column</td><td class="n">§1, §3.3</td></tr>
+  </tbody>
+</table></div>
+
+<footer class="footer">
+  <p>All numbers come from the ADNI analysis cohort. The data file is individual-level and covered by the ADNI Data Use Agreement, so it is not in the repository and this page carries only aggregate figures.</p>
+  <p>Reproduce everything from branch <span class="mono">audit_v1-202609</span>: run <code>renv::restore()</code>, then both runners, with and without <code>LDL_SCHEME=ncep3</code>. The scheme comparison (§2), the adjusted baseline models (§3.1) and the censoring table (§3.4) were one-off audit checks and are not part of the pipeline. The same report is in the repository as <code>AUDIT_202609.md</code> and <code>AUDIT_202609.html</code>.</p>
+</footer>
+</div>
+
+<div class="tip" id="tip" hidden></div>
+
+<script>
+(function () {
+  var data = {
+    ncep5: [
+      { label: "Optimal", range: "< 2.6", neg: 134, pos: 50 },
+      { label: "Near optimal", range: "2.6–3.3", neg: 83, pos: 26 },
+      { label: "Borderline high", range: "3.3–4.1", neg: 30, pos: 13 },
+      { label: "High", range: "4.1–4.9", neg: 5, pos: 3 },
+      { label: "Very high", range: "≥ 4.9", neg: 1, pos: 2 }
+    ],
+    ncep3: [
+      { label: "Optimal", range: "< 2.6", neg: 134, pos: 50 },
+      { label: "Near optimal", range: "2.6–3.3", neg: 83, pos: 26 },
+      { label: "Borderline high or above", range: "≥ 3.3", neg: 36, pos: 18 }
+    ]
+  };
+  var max = 184;
+  var tip = document.getElementById("tip");
+
+  function showTip(e, html) {
+    tip.innerHTML = html;
+    tip.hidden = false;
+    var r = e.target.getBoundingClientRect();
+    var x = (e.clientX != null && e.type !== "focus") ? e.clientX : r.left + r.width / 2;
+    var y = (e.clientY != null && e.type !== "focus") ? e.clientY : r.top;
+    var tw = tip.offsetWidth, th = tip.offsetHeight;
+    var left = Math.min(Math.max(8, x - tw / 2), window.innerWidth - tw - 8);
+    var top = y - th - 12;
+    if (top < 8) top = y + 18;
+    tip.style.left = left + "px";
+    tip.style.top = top + "px";
+  }
+  function hideTip() { tip.hidden = true; }
+
+  document.querySelectorAll(".bars").forEach(function (host) {
+    data[host.getAttribute("data-scheme")].forEach(function (g) {
+      var total = g.neg + g.pos;
+      var row = document.createElement("div");
+      row.className = "bar-row";
+      var lab = document.createElement("div");
+      lab.className = "bar-label";
+      lab.innerHTML = g.label + "<span>" + g.range + " mmol/L</span>";
+      var track = document.createElement("div");
+      track.className = "bar-track";
+      var stack = document.createElement("div");
+      stack.className = "stack";
+      stack.style.width = "calc((100% - 3.2rem) * " + (total / max).toFixed(4) + ")";
+      [["neg", "A−", g.neg], ["pos", "A+", g.pos]].forEach(function (s) {
+        var seg = document.createElement("div");
+        seg.className = "seg " + s[0];
+        seg.style.flex = s[2] + " 0 0";
+        seg.tabIndex = 0;
+        var html = "<b>" + g.label + "</b> (" + g.range + ")<br>" + s[1] + ": " + s[2] + " of " + total;
+        seg.setAttribute("aria-label", g.label + ", " + s[1] + ": " + s[2] + " of " + total);
+        seg.addEventListener("mousemove", function (e) { showTip(e, html); });
+        seg.addEventListener("mouseleave", hideTip);
+        seg.addEventListener("focus", function (e) { showTip(e, html); });
+        seg.addEventListener("blur", hideTip);
+        stack.appendChild(seg);
+      });
+      var n = document.createElement("span");
+      n.className = "bar-n" + (total < 12 ? " warn" : "");
+      n.textContent = g.neg + " + " + g.pos;
+      track.appendChild(stack);
+      track.appendChild(n);
+      row.appendChild(lab);
+      row.appendChild(track);
+      host.appendChild(row);
+    });
+  });
+})();
+</script>
+</body>
+</html>
