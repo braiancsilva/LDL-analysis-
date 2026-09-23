@@ -1,6 +1,5 @@
 # ── Individual-level data (ADNI Data Use Agreement — never commit) ───────────
-Data/*
-!Data/.gitkeep
+Data/
 *.xlsx
 *.xls
 *.csv
@@ -16,7 +15,9 @@ Outputs/*
 secrets/*
 !secrets/*.example
 
-# ── Temporary working documents ─────────────────────────────────────────────
+# ── Local-only working documents (kept on disk, not committed) ──────────────
+CLAUDE.md
+STYLE.md
 grilling.md
 
 # ── R / RStudio ─────────────────────────────────────────────────────────────
