@@ -1,0 +1,33 @@
+# ── Individual-level data (ADNI Data Use Agreement — never commit) ───────────
+Data/*
+!Data/.gitkeep
+*.xlsx
+*.xls
+*.csv
+*.rds
+*.RData
+*.rda
+
+# ── Outputs (shareable only when deliberately promoted) ─────────────────────
+Outputs/*
+!Outputs/.gitkeep
+
+# ── Credentials ─────────────────────────────────────────────────────────────
+secrets/*
+!secrets/*.example
+
+# ── Temporary working documents ─────────────────────────────────────────────
+grilling.md
+
+# ── R / RStudio ─────────────────────────────────────────────────────────────
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+*.knit.md
+*_files/
+
+# ── System ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
