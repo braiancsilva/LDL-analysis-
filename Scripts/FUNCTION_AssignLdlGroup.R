@@ -1,19 +1,21 @@
 #############################
 # assign_ldl_group
 #   -- bin continuous LDL-C (mmol/L) into the clinical categories of cfg$ldl
-# ARGUMENTS -- x (numeric), ldl_cfg (list), labels (character)
+# ARGUMENTS -- x (numeric), ldl_cfg (list), labels (character), set_reference (logical)
 #   > x: LDL-C values in mmol/L
 #   > ldl_cfg: cfg$ldl -- carries breaks, right, reference
 #   > labels: one label per interval (cfg$ldl$labels or cfg$ldl$display_labels)
-# RETURNS -- factor: one level per interval, first level = the reference category
-# NOTES -- the reference is matched by position, so display labels keep the same
-#          reference as the plain labels.
+#   > set_reference: move cfg$ldl$reference to the first level (default: TRUE)
+# RETURNS -- factor: one level per interval
+# NOTES -- use set_reference = FALSE for figure labels, so the levels stay in
+#          clinical (ascending LDL-C) order whatever the model reference is.
 #############################
 
 assign_ldl_group <- function(
           x,
           ldl_cfg,
-          labels
+          labels,
+          set_reference = TRUE
 ) {
 
      # Validate inputs ####
@@ -30,5 +32,6 @@ assign_ldl_group <- function(
 
      # Bin ####
      groups <- cut(x = x, breaks = ldl_cfg$breaks, labels = labels, right = ldl_cfg$right)
-     stats::relevel(groups, ref = labels[ref_pos])
+     if (set_reference) groups <- stats::relevel(groups, ref = labels[ref_pos])
+     groups
 }

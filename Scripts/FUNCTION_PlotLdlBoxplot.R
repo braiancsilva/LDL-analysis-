@@ -19,6 +19,10 @@
 # NOTES
 #   > box_cfg$limit_mode "scale" removes observations outside y_limits BEFORE the
 #     box statistics and significance tests are computed; "coord" only zooms.
+#   > Comparisons involving a group with < 2 observations are skipped with a
+#     warning: one failing test would make ggsignif drop every bar.
+#   > Bar heights: signif_y_start + signif_y_step * (0, 1, ...), one per
+#     comparison, so the layout adapts to the number of LDL-C groups.
 #############################
 
 plot_ldl_boxplot <- function(
@@ -44,6 +48,20 @@ plot_ldl_boxplot <- function(
      group_levels <- levels(data[[group_col]])
      comparisons  <- lapply(seq_len(length(group_levels) - 1L), function(i) group_levels[c(i, i + 1L)])
 
+     n_by_group <- table(data[[group_col]][!is.na(data[[outcome]])])
+     testable   <- vapply(comparisons, function(pair) all(n_by_group[pair] >= 2L), logical(1))
+     if (!all(testable)) {
+          warning(sprintf("[plot_ldl_boxplot] %s: skipping comparison(s) with < 2 observations: %s",
+                          outcome, paste(vapply(comparisons[!testable], paste, character(1), collapse = " vs "),
+                                         collapse = "; ")))
+          comparisons <- comparisons[testable]
+     }
+
+     y_position <- NULL
+     if (!is.null(box_cfg$signif_y_start) && length(comparisons) > 0L) {
+          y_position <- box_cfg$signif_y_start + box_cfg$signif_y_step * (seq_along(comparisons) - 1L)
+     }
+
      # Build plot ####
      y_axis <- switch(limit_mode,
                       scale = ggplot2::scale_y_continuous(limits = box_cfg$y_limits, expand = c(0, 0)),
@@ -59,9 +77,9 @@ plot_ldl_boxplot <- function(
           ggplot2::scale_color_manual(values = colors) +
           ggplot2::scale_fill_manual(values = colors) +
           theme_ldl_boxplot(font_family = font_family) +
-          ggsignif::geom_signif(comparisons = comparisons,
+          (if (length(comparisons) > 0L) ggsignif::geom_signif(comparisons = comparisons,
                                 test = signif_test,
                                 map_signif_level = TRUE, step_increase = 0.08, size = 0.5,
                                 color = "black", family = font_family, textsize = 3.5,
-                                y_position = box_cfg$signif_y_position)
+                                y_position = y_position))
 }

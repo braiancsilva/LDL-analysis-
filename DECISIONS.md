@@ -12,6 +12,7 @@ gitignored) until they become a record here.
 |---|---|---|
 | D-001 | LDL-C clinical categories (NCEP ATP III, mmol/L) | DECIDED (inherited, 2026-09-23) |
 | D-002 | Repository layout and data handling (STYLE v2.1) | DECIDED 2026-09-23 |
+| D-003 | 3-group LDL-C scheme as a sensitivity axis | DECIDED 2026-09-23 |
 
 ---
 
@@ -23,10 +24,11 @@ gitignored) until they become a record here.
   High `[4.1, 4.9)`, Very high `≥4.9`. Reference level: Optimal.
 - **Rationale:** these are the NCEP ATP III LDL-C classes (100 / 130 / 160 / 190 mg/dL)
   converted to mmol/L, the standard clinical categorisation.
-- **cfg:** `cfg$ldl$breaks`, `cfg$ldl$right`, `cfg$ldl$labels`, `cfg$ldl$reference`.
+- **cfg:** `ldl_schemes$ncep5` in `Scripts/config_ldl_analysis.R`, surfaced as
+  `cfg$ldl$breaks`, `cfg$ldl$labels`, `cfg$ldl$reference` when `LDL_SCHEME` is unset.
 - **Open consequence:** the top two categories are sparse at baseline (High n = 8,
-  Very high n = 3). Whether to merge them is an open question in `grilling.md`; this
-  record stays as is until that is settled.
+  Very high n = 3). A merged 3-group scheme now runs as a sensitivity analysis
+  (D-003). Whether it should *replace* this scheme as primary is still open in `grilling.md`.
 
 ## D-002 — Repository layout and data handling
 
@@ -43,3 +45,17 @@ gitignored) until they become a record here.
   type III F of all six mixed models, within 3e-12. The original script remains in
   git history (commit `be01cbc`).
 - **cfg:** `cfg$paths`.
+
+## D-003 — 3-group LDL-C scheme as a sensitivity axis
+
+- **Status:** DECIDED 2026-09-23 (requested by Braian: "3 cut-offs instead of 5").
+- **Decision:** add scheme `ncep3`: Optimal `<2.6`, Near optimal `[2.6, 3.3)`,
+  Borderline high or above `≥3.3` mmol/L. It runs with `LDL_SCHEME=ncep3` and writes to
+  `Outputs/*_ldl3`. It never overwrites the primary 5-group outputs (D-001). Only the
+  categorical models are rerun; the continuous-LDL models do not depend on the scheme.
+- **Rationale:** audit of 2026-09-23 (`AUDIT_202609.md` § 2).
+  - Merging the three classes at or above 130 mg/dL gives baseline n = 184 / 109 / 54 (A+ 50 / 26 / 18). The alternative `<2.6 / 2.6–4.1 / ≥4.1` leaves a top group of 11 (A+ 5).
+  - The likelihood-ratio test of 3 against 5 groups finds no loss of fit: p = 0.99 (mPACC), 0.89 (p-tau), 0.97 (Aβ). AIC is 12–14 points lower for 3 groups, BIC 48–58 lower.
+  - The cut-points stay NCEP ones, keeping comparability with the primary. Tertiles were rejected as sample-specific.
+  - Continuous LDL-C beats every categorisation on AIC/BIC for all three outcomes, and a 3-df spline does not beat a linear term. This argues for continuous LDL-C as the eventual primary exposure; that question stays open in `grilling.md`.
+- **cfg:** `ldl_schemes$ncep3`, selected by env var `LDL_SCHEME`; `cfg$ldl$is_primary`.

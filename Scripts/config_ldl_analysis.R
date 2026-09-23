@@ -13,6 +13,10 @@
 #   > The data file defaults to <root>/Data/cognition_LDL_C.xlsx and can be
 #     overridden with env var LDL_ANALYSIS_DATA. It is individual-level ADNI
 #     data and is gitignored -- never commit it (STYLE.md § Data Handling).
+#   > The LDL-C categorisation is a sensitivity axis, chosen with env var
+#     LDL_SCHEME (default "ncep5", the primary). A non-primary scheme writes to
+#     suffixed output directories (Outputs/*_<suffix>) and never overwrites the
+#     primary run.
 #   > Fields carrying a recorded design decision cite its D-NNN (DECISIONS.md).
 #############################
 
@@ -39,16 +43,49 @@ proj_root <- normalizePath(proj_root, mustWork = TRUE)
 data_file <- Sys.getenv("LDL_ANALYSIS_DATA",
                         unset = file.path(proj_root, "Data", "cognition_LDL_C.xlsx"))
 
-# LDL-C categories (D-001) ####
-# NCEP ATP III LDL-C classes, converted from mg/dL (100/130/160/190) to mmol/L.
-# Intervals are left-closed: [2.6, 3.3) is "Near optimal".
-ldl_labels         <- c("Optimal", "Near optimal", "Borderline high", "High", "Very high")
-ldl_display_labels <- c("Optimal\n(<2.6)",
-                        "Near optimal\n(2.6-3.3)",
-                        "Borderline high\n(3.3-4.1)",
-                        "High\n(4.1-4.9)",
-                        "Very high\n(≥4.9)")
-ldl_colors         <- c("#2E8B57", "#F2AD00", "#F98400", "#B40F20", "#7B0051")
+# LDL-C categorisation schemes ####
+# Intervals are left-closed: [2.6, 3.3) is "Near optimal". The first label is the
+# model reference level. band_label_x places the scatter-plot band labels.
+ldl_schemes <- list(
+
+     # D-001 -- primary. NCEP ATP III classes (100/130/160/190 mg/dL) in mmol/L,
+     # rounded as in the original script (see grilling.md on 3.3 vs 3.36).
+     ncep5 = list(
+          suffix         = "",
+          breaks         = c(-Inf, 2.6, 3.3, 4.1, 4.9, Inf),
+          labels         = c("Optimal", "Near optimal", "Borderline high", "High", "Very high"),
+          display_labels = c("Optimal\n(<2.6)",
+                             "Near optimal\n(2.6-3.3)",
+                             "Borderline high\n(3.3-4.1)",
+                             "High\n(4.1-4.9)",
+                             "Very high\n(\u22654.9)"),
+          colors         = c("#2E8B57", "#F2AD00", "#F98400", "#B40F20", "#7B0051"),
+          band_label_x   = c(1.3, 2.95, 3.7, 4.5, 5.5),
+          band_labels    = c("Optimal", "Near\noptimal", "Borderline\nhigh", "High", "Very\nhigh")
+     ),
+
+     # D-003 -- sensitivity. The three NCEP classes at or above 130 mg/dL merged,
+     # because High (n = 8) and Very high (n = 3) are too sparse to estimate.
+     ncep3 = list(
+          suffix         = "ldl3",
+          breaks         = c(-Inf, 2.6, 3.3, Inf),
+          labels         = c("Optimal", "Near optimal", "Borderline high or above"),
+          display_labels = c("Optimal\n(<2.6)",
+                             "Near optimal\n(2.6-3.3)",
+                             "Borderline high\nor above (\u22653.3)"),
+          colors         = c("#2E8B57", "#F2AD00", "#B40F20"),
+          band_label_x   = c(1.3, 2.95, 4.5),
+          band_labels    = c("Optimal", "Near\noptimal", "Borderline\nhigh or above")
+     )
+)
+
+ldl_scheme_name <- Sys.getenv("LDL_SCHEME", unset = "ncep5")
+if (!ldl_scheme_name %in% names(ldl_schemes)) {
+     stop("config_ldl_analysis.R:: !> unknown LDL_SCHEME: ", ldl_scheme_name,
+          " (choose from: ", paste(names(ldl_schemes), collapse = ", "), ")")
+}
+ldl_scheme <- ldl_schemes[[ldl_scheme_name]]
+out_suffix <- if (nzchar(ldl_scheme$suffix)) paste0("_", ldl_scheme$suffix) else ""
 
 # Build cfg ####
 cfg <- list(
@@ -57,8 +94,8 @@ cfg <- list(
           root            = proj_root,
           data_file       = normalizePath(data_file, mustWork = FALSE),
           out_dir         = file.path(proj_root, "Outputs"),
-          cross_sectional = file.path(proj_root, "Outputs", "cross_sectional"),
-          longitudinal    = file.path(proj_root, "Outputs", "longitudinal")
+          cross_sectional = file.path(proj_root, "Outputs", paste0("cross_sectional", out_suffix)),
+          longitudinal    = file.path(proj_root, "Outputs", paste0("longitudinal", out_suffix))
      ),
 
      # Cohort definition ####
@@ -79,12 +116,14 @@ cfg <- list(
      ),
 
      ldl = list(
-          breaks         = c(-Inf, 2.6, 3.3, 4.1, 4.9, Inf),
+          scheme         = ldl_scheme_name,
+          is_primary     = !nzchar(ldl_scheme$suffix),
+          breaks         = ldl_scheme$breaks,
           right          = FALSE,
-          labels         = ldl_labels,
-          display_labels = ldl_display_labels,
-          reference      = "Optimal",
-          colors         = stats::setNames(ldl_colors, ldl_display_labels)
+          labels         = ldl_scheme$labels,
+          display_labels = ldl_scheme$display_labels,
+          reference      = ldl_scheme$labels[1],
+          colors         = stats::setNames(ldl_scheme$colors, ldl_scheme$display_labels)
      ),
 
      # Cross-sectional (baseline) stage ####
@@ -100,16 +139,18 @@ cfg <- list(
           # One entry per boxplot figure. limit_mode "scale" drops observations
           # outside y_limits before the box statistics are computed; "coord"
           # only zooms. Kept as in the original script -- see grilling.md.
+          # signif_y_start/step place the adjacent-pair bars at start, start +
+          # step, ... (one per comparison); NULL lets ggsignif place them.
           boxplots = list(
                ABETA_bl_to_use = list(file = "fig1d_abeta_by_ldl_group", title = "Figure 1d",
                                       y_label = "CSF ABETA 42", y_limits = c(0, 2300),
-                                      limit_mode = "scale", signif_y_position = NULL),
+                                      limit_mode = "scale", signif_y_start = NULL, signif_y_step = NULL),
                PTAU_bl_to_use  = list(file = "fig1e_ptau_by_ldl_group", title = "Figure 1e",
                                       y_label = "CSF PTAU", y_limits = c(0, 60),
-                                      limit_mode = "coord", signif_y_position = c(42, 45, 48, 51)),
+                                      limit_mode = "coord", signif_y_start = 42, signif_y_step = 3),
                mPACCtrailsB_bl = list(file = "fig1f_mpacc_by_ldl_group", title = "Figure 1f",
                                       y_label = "mPACCtrailsB", y_limits = c(-8, 8),
-                                      limit_mode = "scale", signif_y_position = NULL)
+                                      limit_mode = "scale", signif_y_start = NULL, signif_y_step = NULL)
           ),
           scatter = list(
                file         = "scatter_ldl_vs_mpacc_by_amyloid",
@@ -117,8 +158,8 @@ cfg <- list(
                title        = "LDL-C vs Cognitive Score by Amyloid Status",
                x_label      = "LDL-C (mmol/L)",
                y_label      = "mPACCtrailsB",
-               band_label_x = c(1.3, 2.95, 3.7, 4.5, 5.5),
-               band_labels  = c("Optimal", "Near\noptimal", "Borderline\nhigh", "High", "Very\nhigh")
+               band_label_x = ldl_scheme$band_label_x,
+               band_labels  = ldl_scheme$band_labels
           )
      ),
 
@@ -130,6 +171,8 @@ cfg <- list(
           covariates = c("AGE", "PTGENDER", "APOE4_status", "PTEDUCAT"),
           # exposure * amyloid * time + covariates * time + random.
           # ldl_group is the categorical exposure; CLINICAL_LDL_C the continuous one.
+          # A non-primary LDL scheme runs only the ldl_group models: the
+          # continuous ones do not depend on the scheme.
           models = list(
                mpacc_ldl_group = list(outcome = "mPACCtrailsB", exposure = "ldl_group",
                                       random = "(1 + Years_bl_to_use | RID)"),
@@ -148,7 +191,7 @@ cfg <- list(
           prediction_plots = list(
                mpacc_ldl_group = list(file   = "pred_mpacc_ldl_group",
                                       terms  = c("Years_bl_to_use", "ldl_group", "ABETA_positivity_ratio"),
-                                      colors = ldl_colors),
+                                      colors = ldl_scheme$colors),
                mpacc_ldl_cont  = list(file   = "pred_mpacc_ldl_cont",
                                       terms  = c("Years_bl_to_use", "CLINICAL_LDL_C [meansd]", "ABETA_positivity_ratio"),
                                       colors = c("#2E8B57", "#F2AD00", "#B40F20"))
@@ -176,5 +219,5 @@ cfg <- list(
 )
 
 rm(list = intersect(x = c("config_file", "frame_idx", "ofile", "proj_root", "data_file",
-                          "ldl_labels", "ldl_display_labels", "ldl_colors"),
+                          "ldl_schemes", "ldl_scheme_name", "ldl_scheme", "out_suffix"),
                     y = ls()))

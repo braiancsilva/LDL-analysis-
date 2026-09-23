@@ -11,18 +11,32 @@
 # USAGE
 #   > Rscript Scripts/run_cross_sectional.R
 #     or source("Scripts/run_cross_sectional.R") from RStudio
+#   > LDL_SCHEME=ncep3 Rscript Scripts/run_cross_sectional.R  -- 3-group sensitivity run
+#     (writes to Outputs/cross_sectional_ldl3; the primary outputs are untouched)
 # NOTES
 #   > Writes to cfg$paths$cross_sectional (gitignored Outputs/).
 #############################
 
 # Resolve script directory ####
-file_arg   <- grep(pattern = "^--file=", x = commandArgs(trailingOnly = FALSE), value = TRUE)
-script_dir <- if (length(file_arg) == 1L) {
-     dirname(normalizePath(sub(pattern = "^--file=", replacement = "", x = file_arg)))
-} else if (!is.null(sys.frame(1)$ofile)) {
-     dirname(normalizePath(sys.frame(1)$ofile))
-} else {
-     file.path(Sys.getenv("LDL_ANALYSIS_ROOT", unset = getwd()), "Scripts")
+# Order: the file being source()d (innermost), then Rscript --file=, then
+# LDL_ANALYSIS_ROOT or the working directory (line-by-line use in RStudio).
+script_dir <- NULL
+for (frame_idx in rev(seq_len(sys.nframe()))) {
+     if (!is.null(sys.frame(frame_idx)$ofile)) {
+          script_dir <- dirname(normalizePath(sys.frame(frame_idx)$ofile))
+          break
+     }
+}
+file_arg <- grep(pattern = "^--file=", x = commandArgs(trailingOnly = FALSE), value = TRUE)
+if (is.null(script_dir) && length(file_arg) == 1L) {
+     script_dir <- dirname(normalizePath(sub(pattern = "^--file=", replacement = "", x = file_arg)))
+}
+if (is.null(script_dir)) {
+     script_dir <- file.path(Sys.getenv("LDL_ANALYSIS_ROOT", unset = getwd()), "Scripts")
+}
+if (!file.exists(file.path(script_dir, "config_ldl_analysis.R"))) {
+     stop("cross_sectional:: !> config_ldl_analysis.R not found in ", script_dir,
+          "; set LDL_ANALYSIS_ROOT or setwd() to the project root")
 }
 
 # Load configuration and functions ####
@@ -31,7 +45,7 @@ for (f in list.files(path = script_dir, pattern = "^FUNCTION_.*\\.R$", full.name
 
 out_dir <- cfg$paths$cross_sectional
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
-message("cross_sectional:: !> Writing to ", out_dir)
+message("cross_sectional:: !> LDL scheme ", cfg$ldl$scheme, "; writing to ", out_dir)
 
 # Load cohort ####
 cohort   <- load_cohort(data_file = cfg$paths$data_file, cohort_cfg = cfg$cohort, ldl_cfg = cfg$ldl)

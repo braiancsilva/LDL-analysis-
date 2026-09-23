@@ -17,8 +17,8 @@
 #           baseline (data.frame, rows at cohort_cfg$baseline_time)
 # NOTES
 #   > Derived columns: amyloid_status (factor, "(A)-"/"(A)+"), ldl_group
-#     (factor, plain labels, used in models) and ldl_group_label (factor,
-#     display labels with line breaks, used in figures).
+#     (factor, plain labels, reference level first, used in models) and
+#     ldl_group_label (factor, display labels in clinical order, used in figures).
 #   > Coercion to numeric warns with the count and the distinct values lost, so
 #     censored assay strings (">1700", "<8") are never dropped silently.
 #############################
@@ -58,8 +58,9 @@ load_cohort <- function(
      age  <- raw[[cohort_cfg$age_col]]
      keep <- !is.na(age) & age >= cohort_cfg$min_age
      cohort <- raw[keep, , drop = FALSE]
-     cohort <- cohort[!is.na(cohort[[cohort_cfg$ldl_col]]), , drop = FALSE]
+     # Coerce before filtering, so an unparseable LDL-C value is excluded, not kept as NA
      cohort[[cohort_cfg$ldl_col]] <- as.numeric(cohort[[cohort_cfg$ldl_col]])
+     cohort <- cohort[!is.na(cohort[[cohort_cfg$ldl_col]]), , drop = FALSE]
      message(sprintf("[load_cohort] %d of %d visits kept (age >= %s, non-missing %s)",
                      nrow(cohort), nrow(raw), cohort_cfg$min_age, cohort_cfg$ldl_col))
 
@@ -84,7 +85,8 @@ load_cohort <- function(
      cohort$ldl_group       <- assign_ldl_group(x = cohort[[cohort_cfg$ldl_col]], ldl_cfg = ldl_cfg,
                                                 labels = ldl_cfg$labels)
      cohort$ldl_group_label <- assign_ldl_group(x = cohort[[cohort_cfg$ldl_col]], ldl_cfg = ldl_cfg,
-                                                labels = ldl_cfg$display_labels)
+                                                labels = ldl_cfg$display_labels,
+                                                set_reference = FALSE)
 
      # Split baseline ####
      time     <- cohort[[cohort_cfg$time_col]]
