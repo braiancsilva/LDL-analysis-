@@ -1,0 +1,8 @@
+# Generic (STYLE.md template): individual-level tables no extension identifies
+(^|/)pheno[^/]*\.(csv|tsv|txt|xlsx)$
+(^|/)covar[^/]*\.(csv|tsv|txt|xlsx)$
+(^|/)[^/]*crosswalk[^/]*$
+
+# Project-specific
+# Clinical cognition/LDL table
+(^|/)cognition_LDL[^/]*$

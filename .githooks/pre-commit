@@ -1,0 +1,110 @@
+#!/usr/bin/env Rscript
+#############################
+# pre-commit
+#   -- refuse any commit that stages individual-level data or credentials
+# PURPOSE
+#   > Enforces ## Data Handling at commit time, for every client (terminal,
+#   > RStudio, Claude Code). Git computes the staged set itself, including for
+#   > `git commit -a` and `git commit -- <path>`.
+# REQUIREMENTS
+#   > Packages: none (base R). External: git
+# ARGUMENTS
+#   > none -- reads the index git hands to the hook
+# RETURNS
+#   > exit status: 0 allows the commit, 1 refuses it
+# NOTES
+#   > A staged path is refused when any of these holds:
+#   >   1. .gitignore would ignore it -- it was force-added (`git add -f`);
+#   >   2. its extension is an individual-level format (genotypes, reads);
+#   >   3. it sits under secrets/ and is not a *.example template;
+#   >   4. it matches a line of .githooks/protected_patterns (project-specific
+#   >      extended regexes, one per line, '#' starts a comment).
+#   > Fails closed: if git cannot be queried, the commit is refused.
+#   > A wrongly refused file is fixed in .gitignore (a `!` negation) or in
+#   > protected_patterns -- never with --no-verify.
+#############################
+
+# Configuration ####
+individual_level_ext <- paste0(
+     "\\.(vcf|vcf\\.gz|bcf|bgen|pgen|pvar|psam|bim|fam|",
+     "fastq|fastq\\.gz|fq|fq\\.gz|bam|cram|sam|idat)$"
+)
+patterns_file <- ".githooks/protected_patterns"
+
+#############################
+# run_git
+#   -- run one git command; stop() on an unexpected exit status
+# ARGUMENTS -- args (character), ok_status (integer), input (character)
+#   > args: arguments to git, already shell-safe
+#   > ok_status: exit statuses that count as success (default: 0L)
+#   > input: lines fed to stdin (default: NULL)
+# RETURNS -- list: status, stdout
+#############################
+run_git <- function(
+          args,
+          ok_status = 0L,
+          input = NULL
+) {
+     # Validate inputs ####
+     if (!is.character(args) || length(args) == 0L) stop("args must be non-empty character: ", args)
+
+     # Run ####
+     out_file <- tempfile()
+     in_file <- ""
+     if (!is.null(input)) {
+          in_file <- tempfile()
+          writeLines(text = input, con = in_file)
+     }
+     on.exit(unlink(c(out_file, in_file)))
+     status <- tryCatch(
+          system2(command = "git", args = args, stdout = out_file, stderr = out_file, stdin = in_file),
+          warning = function(w) stop("git ", paste(args, collapse = " "), ": ", conditionMessage(w)),
+          error = function(e) stop("git ", paste(args, collapse = " "), ": ", conditionMessage(e))
+     )
+     stdout <- readLines(con = out_file, warn = FALSE)
+     if (!status %in% ok_status) {
+          stop(sprintf("git %s exited %d: %s", paste(args, collapse = " "), status, paste(stdout, collapse = " ")))
+     }
+     list(
+          status = status,
+          stdout = stdout
+     )
+}
+
+# Check staged paths ####
+result <- tryCatch({
+     staged <- run_git(args = c("-c", "core.quotePath=false", "diff", "--cached", "--name-only", "--diff-filter=ACMR"))$stdout
+     if (length(staged) == 0L) quit(save = "no", status = 0L)
+
+     ignored <- run_git(args = c("check-ignore", "--no-index", "--stdin"), ok_status = c(0L, 1L), input = staged)$stdout
+     by_ext <- staged[grepl(pattern = individual_level_ext, x = staged, ignore.case = TRUE)]
+     by_secret <- staged[grepl(pattern = "(^|/)secrets/", x = staged) & !grepl(pattern = "\\.example$", x = staged)]
+     by_project <- character(0)
+     if (file.exists(patterns_file)) {
+          patterns <- trimws(sub(pattern = "#.*$", replacement = "", x = readLines(con = patterns_file, warn = FALSE)))
+          patterns <- patterns[nzchar(patterns)]
+          for (p in patterns) by_project <- c(by_project, staged[grepl(pattern = p, x = staged)])
+     }
+
+     data.frame(
+          path = c(ignored, by_ext, by_secret, by_project),
+          reason = c(rep("gitignored (force-added)", length(ignored)),
+                     rep("individual-level format", length(by_ext)),
+                     rep("credential under secrets/", length(by_secret)),
+                     rep("matches .githooks/protected_patterns", length(by_project))),
+          stringsAsFactors = FALSE
+     )
+}, error = function(e) {
+     message("pre-commit:: !> data guard could not run, commit refused: ", conditionMessage(e))
+     quit(save = "no", status = 1L)
+})
+
+# Report ####
+if (nrow(result) > 0L) {
+     result <- result[!duplicated(result$path), , drop = FALSE]
+     message("pre-commit:: !> commit refused -- STYLE.md ## Data Handling. Staged paths:")
+     for (i in seq_len(nrow(result))) message(sprintf("  %s  [%s]", result$path[i], result$reason[i]))
+     message("pre-commit:: !> unstage with `git restore --staged <path>`; never bypass with --no-verify.")
+     quit(save = "no", status = 1L)
+}
+quit(save = "no", status = 0L)

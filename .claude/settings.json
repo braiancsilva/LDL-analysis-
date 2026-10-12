@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && [ -x .githooks/pre-commit ] && [ \"$(git config core.hooksPath)\" != .githooks ] && echo '{\"systemMessage\": \"Data guard INACTIVE in this clone (STYLE.md ## Data Handling). Run: git config core.hooksPath .githooks\"}'; exit 0"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(*git*)",
+            "command": "c=$(jq -r '.tool_input.command'); printf '%s' \"$c\" | grep -Eq -- '--no-verify|core\\.hooksPath|commit[^;&|]*[[:space:]]-[a-zA-Z]*n[a-zA-Z]*([[:space:]]|$)' && [ \"$c\" != 'git config core.hooksPath .githooks' ] && { echo 'Blocked: this would bypass or reconfigure the data guard (.githooks/pre-commit, STYLE.md ## Data Handling). Unstage the offending file or fix .gitignore instead.' >&2; exit 2; }; exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}
