@@ -6,6 +6,12 @@ Resolved, superseded or abandoned records change `Status` and stay in place
 names the `cfg` field carrying it. Open questions live in `grilling.md` (temporary,
 gitignored) until they become a record here.
 
+**Data use.** The data are individual-level ADNI data under the **ADNI Data Use
+Agreement**. They are not in this repository and must never be committed, pushed,
+posted in an issue or copied outside approved machines. Each collaborator holds their
+own approved copy. Only summary statistics and figures may be shared, and those are
+written to the gitignored `Outputs/` until deliberately promoted.
+
 **Contents**
 
 | ID | Decision | Status |

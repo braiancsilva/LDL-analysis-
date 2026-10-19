@@ -21,7 +21,8 @@ plot_model_predictions <- function(
      # Validate inputs ####
      if (!inherits(model, "merMod")) stop("[plot_model_predictions] model must be a merMod, got: ", class(model)[1])
      if (is.null(pred_cfg$terms) || is.null(pred_cfg$colors)) {
-          stop("[plot_model_predictions] pred_cfg needs terms and colors")
+          stop("[plot_model_predictions] pred_cfg needs terms and colors, got fields: ",
+               paste(names(pred_cfg), collapse = ", "))
      }
      if (!requireNamespace("sjPlot", quietly = TRUE)) {
           stop("[plot_model_predictions] package 'sjPlot' is required but not installed")
