@@ -14,9 +14,9 @@
 #     overridden with env var LDL_ANALYSIS_DATA. It is individual-level ADNI
 #     data and is gitignored -- never commit it (STYLE.md § Data Handling).
 #   > The LDL-C categorisation is a sensitivity axis, chosen with env var
-#     LDL_SCHEME (default "ncep5", the primary). A non-primary scheme writes to
-#     suffixed output directories (Outputs/*_<suffix>) and never overwrites the
-#     primary run.
+#     LDL_SCHEME (default "ncep3", the primary, D-006). A non-primary scheme writes
+#     to suffixed output directories (Outputs/*_<suffix>) and never overwrites the
+#     primary run. Exactly one scheme has an empty suffix.
 #   > Fields carrying a recorded design decision cite its D-NNN (DECISIONS.md).
 #############################
 
@@ -48,10 +48,24 @@ data_file <- Sys.getenv("LDL_ANALYSIS_DATA",
 # model reference level. band_label_x places the scatter-plot band labels.
 ldl_schemes <- list(
 
-     # D-001 -- primary. NCEP ATP III classes (100/130/160/190 mg/dL) in mmol/L,
-     # rounded as in the original script (see grilling.md on 3.3 vs 3.36).
-     ncep5 = list(
+     # D-006 -- primary. The three NCEP classes at or above 130 mg/dL merged
+     # (D-003), because High (n = 8) and Very high (n = 3) are too sparse to estimate.
+     ncep3 = list(
           suffix         = "",
+          breaks         = c(-Inf, 2.6, 3.3, Inf),
+          labels         = c("Optimal", "Near optimal", "Borderline high or above"),
+          display_labels = c("Optimal\n(<2.6)",
+                             "Near optimal\n(2.6-3.3)",
+                             "Borderline high\nor above (\u22653.3)"),
+          colors         = c("#2E8B57", "#F2AD00", "#B40F20"),
+          band_label_x   = c(1.3, 2.95, 4.5),
+          band_labels    = c("Optimal", "Near\noptimal", "Borderline\nhigh or above")
+     ),
+
+     # D-001 -- sensitivity since D-006. NCEP ATP III classes (100/130/160/190 mg/dL)
+     # in mmol/L, rounded as in the original script (see grilling.md on 3.3 vs 3.36).
+     ncep5 = list(
+          suffix         = "ldl5",
           breaks         = c(-Inf, 2.6, 3.3, 4.1, 4.9, Inf),
           labels         = c("Optimal", "Near optimal", "Borderline high", "High", "Very high"),
           display_labels = c("Optimal\n(<2.6)",
@@ -62,24 +76,16 @@ ldl_schemes <- list(
           colors         = c("#2E8B57", "#F2AD00", "#F98400", "#B40F20", "#7B0051"),
           band_label_x   = c(1.3, 2.95, 3.7, 4.5, 5.5),
           band_labels    = c("Optimal", "Near\noptimal", "Borderline\nhigh", "High", "Very\nhigh")
-     ),
-
-     # D-003 -- sensitivity. The three NCEP classes at or above 130 mg/dL merged,
-     # because High (n = 8) and Very high (n = 3) are too sparse to estimate.
-     ncep3 = list(
-          suffix         = "ldl3",
-          breaks         = c(-Inf, 2.6, 3.3, Inf),
-          labels         = c("Optimal", "Near optimal", "Borderline high or above"),
-          display_labels = c("Optimal\n(<2.6)",
-                             "Near optimal\n(2.6-3.3)",
-                             "Borderline high\nor above (\u22653.3)"),
-          colors         = c("#2E8B57", "#F2AD00", "#B40F20"),
-          band_label_x   = c(1.3, 2.95, 4.5),
-          band_labels    = c("Optimal", "Near\noptimal", "Borderline\nhigh or above")
      )
 )
 
-ldl_scheme_name <- Sys.getenv("LDL_SCHEME", unset = "ncep5")
+primary_schemes <- names(ldl_schemes)[!nzchar(vapply(ldl_schemes, function(x) x$suffix, character(1)))]
+if (length(primary_schemes) != 1L) {
+     stop("config_ldl_analysis.R:: !> exactly one LDL scheme must have an empty suffix, got: ",
+          paste(primary_schemes, collapse = ", "))
+}
+
+ldl_scheme_name <- Sys.getenv("LDL_SCHEME", unset = primary_schemes)
 if (!ldl_scheme_name %in% names(ldl_schemes)) {
      stop("config_ldl_analysis.R:: !> unknown LDL_SCHEME: ", ldl_scheme_name,
           " (choose from: ", paste(names(ldl_schemes), collapse = ", "), ")")
@@ -106,13 +112,18 @@ cfg <- list(
           ldl_col       = "CLINICAL_LDL_C",
           amyloid_col   = "ABETA_positivity_ratio",
           min_age       = 65,
+          # D-005 -- LDL-C below this (mmol/L) is implausible; the participant is excluded.
+          min_ldl       = 0.04,
           baseline_time = 0,
           # Amyloid coding: 1 = positive by the p-tau/Abeta ratio.
           amyloid_levels = c(negative = "(A)-", positive = "(A)+"),
           # Read as text in the xlsx (censored strings such as ">1700", "<8");
           # coerced to numeric, and any value lost to NA raises a warning.
           numeric_cols  = c("ABETA_bl_to_use", "PTAU_bl_to_use", "mPACCtrailsB_bl",
-                            "ABETA", "PTAU")
+                            "ABETA", "PTAU"),
+          # D-004 -- censored strings replaced by a value before coercion, per column.
+          # The lower limits ("<200", "<8") are undecided and still become NA.
+          censored_values = list(ABETA = c(">1700" = 1700))
      ),
 
      ldl = list(
@@ -134,6 +145,9 @@ cfg <- list(
 
      cross_sectional = list(
           outcomes    = c("ABETA_bl_to_use", "PTAU_bl_to_use", "mPACCtrailsB_bl"),
+          # D-007 -- primary outcome is cognition; the CSF markers are secondary.
+          outcome_roles = c(ABETA_bl_to_use = "secondary", PTAU_bl_to_use = "secondary",
+                            mPACCtrailsB_bl = "primary"),
           p_adjust    = "bonferroni",
           signif_test = "wilcox.test",
           # One entry per boxplot figure. limit_mode "scale" drops observations
@@ -172,19 +186,20 @@ cfg <- list(
           # exposure * amyloid * time + covariates * time + random.
           # ldl_group is the categorical exposure; CLINICAL_LDL_C the continuous one.
           # A non-primary LDL scheme runs only the ldl_group models: the
-          # continuous ones do not depend on the scheme.
+          # continuous ones do not depend on the scheme. Both exposures are
+          # primary (D-006); role marks the primary outcome (D-007).
           models = list(
-               mpacc_ldl_group = list(outcome = "mPACCtrailsB", exposure = "ldl_group",
+               mpacc_ldl_group = list(outcome = "mPACCtrailsB", exposure = "ldl_group", role = "primary",
                                       random = "(1 + Years_bl_to_use | RID)"),
-               mpacc_ldl_cont  = list(outcome = "mPACCtrailsB", exposure = "CLINICAL_LDL_C",
+               mpacc_ldl_cont  = list(outcome = "mPACCtrailsB", exposure = "CLINICAL_LDL_C", role = "primary",
                                       random = "(1 + Years_bl_to_use | RID)"),
-               ptau_ldl_group  = list(outcome = "PTAU", exposure = "ldl_group",
+               ptau_ldl_group  = list(outcome = "PTAU", exposure = "ldl_group", role = "secondary",
                                       random = "(1 + Years_bl_to_use | RID)"),
-               ptau_ldl_cont   = list(outcome = "PTAU", exposure = "CLINICAL_LDL_C",
+               ptau_ldl_cont   = list(outcome = "PTAU", exposure = "CLINICAL_LDL_C", role = "secondary",
                                       random = "(1 + Years_bl_to_use | RID)"),
-               abeta_ldl_group = list(outcome = "ABETA", exposure = "ldl_group",
+               abeta_ldl_group = list(outcome = "ABETA", exposure = "ldl_group", role = "secondary",
                                       random = "(1 | RID)"),
-               abeta_ldl_cont  = list(outcome = "ABETA", exposure = "CLINICAL_LDL_C",
+               abeta_ldl_cont  = list(outcome = "ABETA", exposure = "CLINICAL_LDL_C", role = "secondary",
                                       random = "(1 | RID)")
           ),
           # Predicted-trajectory figures, keyed by model name.
@@ -219,5 +234,6 @@ cfg <- list(
 )
 
 rm(list = intersect(x = c("config_file", "frame_idx", "ofile", "proj_root", "data_file",
-                          "ldl_schemes", "ldl_scheme_name", "ldl_scheme", "out_suffix"),
+                          "ldl_schemes", "primary_schemes", "ldl_scheme_name", "ldl_scheme",
+                          "out_suffix"),
                     y = ls()))

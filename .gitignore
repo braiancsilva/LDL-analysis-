@@ -19,6 +19,7 @@ secrets/*
 CLAUDE.md
 STYLE.md
 grilling.md
+MESSAGE_*.md
 
 # ── R / RStudio ─────────────────────────────────────────────────────────────
 .Rhistory

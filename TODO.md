@@ -3,7 +3,7 @@
 `[ ]` open, `[x]` done, `[~]` in progress. Tasks are `T-NN`, never renumbered.
 Decisions are `D-NNN` in `DECISIONS.md`; open questions are in `grilling.md`.
 
-**Next action:** T-01 / T-06 — Braian reviews the refactor and the audit.
+**Next action:** T-07 — Braian decides the lower-limit censored values; then T-01.
 
 - [x] **T-00 — Adopt STYLE v2.1** (2026-09-23): cfg-driven refactor, data out of git,
       set-1 scaffold, `renv.lock`. Equivalence to the original verified (D-002).
@@ -17,7 +17,12 @@ Decisions are `D-NNN` in `DECISIONS.md`; open questions are in `grilling.md`.
 - [x] **T-05 — Audit (Braian's checklist)** (2026-09-23): code audit, 3 vs 5 cut-offs,
       appropriateness of the statistical tests. Report: `AUDIT_202609.md`. 3-group scheme
       added as a sensitivity run (D-003). Code-review bugs fixed.
-- [ ] **T-06 — Decide the audit's High-priority items** with Braian (`AUDIT_202609.md`
-      § 4): censored Aβ handling, primary LDL-C exposure, figure significance bars.
+- [~] **T-06 — Decide the audit's High-priority items** with Braian (`AUDIT_202609.md`
+      § 4). 2026-10-19: censored `">1700"` (D-004), implausible LDL-C (D-005), primary
+      exposure (D-006) and primary outcome (D-007) decided and implemented. Open: the
+      lower-limit censored values (T-07) and the figure significance bars.
+- [ ] **T-07 — Braian decides the lower-limit censored values** (`ABETA` `"<200"`, n = 1;
+      `PTAU` `"<8"`, n = 7): set to the limit like `">1700"` (D-004), or leave as NA.
+      Question sent 2026-10-19.
 - [ ] **T-04 — Open set 2** (`PROJECT_BRIEF.md`, `README.md` stub with the ADNI
       data-use statement) once the design is settled, then delete `grilling.md`.

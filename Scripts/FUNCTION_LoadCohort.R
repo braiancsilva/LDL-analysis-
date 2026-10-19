@@ -2,8 +2,8 @@
 # load_cohort
 #   -- read the ADNI LDL-C/cognition table and derive the analysis cohort
 # PURPOSE
-#   > Apply the inclusion rules (age, non-missing LDL-C), coerce text-stored
-#     numeric columns, and derive the amyloid-status and LDL-C group columns
+#   > Apply the inclusion rules (age, non-missing and plausible LDL-C), replace
+#     censored assay strings, coerce text-stored numeric columns, and derive the amyloid-status and LDL-C group columns
 #     shared by every stage.
 # REQUIREMENTS
 #   > Packages: readxl
@@ -19,8 +19,12 @@
 #   > Derived columns: amyloid_status (factor, "(A)-"/"(A)+"), ldl_group
 #     (factor, plain labels, reference level first, used in models) and
 #     ldl_group_label (factor, display labels in clinical order, used in figures).
-#   > Coercion to numeric warns with the count and the distinct values lost, so
-#     censored assay strings (">1700", "<8") are never dropped silently.
+#   > cohort_cfg$censored_values replaces listed censored strings with a value
+#     (">1700" -> 1700, D-004) and reports the count. Any other string lost in the
+#     coercion to numeric raises a warning with the count and the distinct values,
+#     so censored values ("<200", "<8") are never dropped silently.
+#   > LDL-C is one value per participant, so the min_ldl rule (D-005) removes
+#     whole participants.
 #############################
 
 load_cohort <- function(
@@ -33,8 +37,8 @@ load_cohort <- function(
      if (!is.character(data_file) || length(data_file) != 1L || !file.exists(data_file)) {
           stop("[load_cohort] data file not found: ", data_file)
      }
-     for (field in c("id_col", "age_col", "time_col", "ldl_col", "amyloid_col",
-                     "min_age", "baseline_time", "amyloid_levels", "numeric_cols")) {
+     for (field in c("id_col", "age_col", "time_col", "ldl_col", "amyloid_col", "min_age",
+                     "min_ldl", "baseline_time", "amyloid_levels", "numeric_cols", "censored_values")) {
           if (is.null(cohort_cfg[[field]])) stop("[load_cohort] cohort_cfg$", field, " is missing")
      }
 
@@ -63,6 +67,28 @@ load_cohort <- function(
      cohort <- cohort[!is.na(cohort[[cohort_cfg$ldl_col]]), , drop = FALSE]
      message(sprintf("[load_cohort] %d of %d visits kept (age >= %s, non-missing %s)",
                      nrow(cohort), nrow(raw), cohort_cfg$min_age, cohort_cfg$ldl_col))
+
+     implausible <- cohort[[cohort_cfg$ldl_col]] < cohort_cfg$min_ldl
+     message(sprintf("[load_cohort] %d visits from %d participants excluded (%s < %s)",
+                     sum(implausible), length(unique(cohort[[cohort_cfg$id_col]][implausible])),
+                     cohort_cfg$ldl_col, cohort_cfg$min_ldl))
+     cohort <- cohort[!implausible, , drop = FALSE]
+
+     # Replace censored values ####
+     unknown_cols <- setdiff(names(cohort_cfg$censored_values), cohort_cfg$numeric_cols)
+     if (length(unknown_cols) > 0L) {
+          stop("[load_cohort] censored_values names columns not in numeric_cols: ",
+               paste(unknown_cols, collapse = ", "))
+     }
+     for (col in names(cohort_cfg$censored_values)) {
+          replacements <- cohort_cfg$censored_values[[col]]
+          for (censored in names(replacements)) {
+               hit <- !is.na(cohort[[col]]) & cohort[[col]] == censored
+               cohort[[col]][hit] <- as.character(replacements[[censored]])
+               message(sprintf("[load_cohort] %s: %d \"%s\" set to %s",
+                               col, sum(hit), censored, replacements[[censored]]))
+          }
+     }
 
      # Coerce numeric columns ####
      for (col in cohort_cfg$numeric_cols) {

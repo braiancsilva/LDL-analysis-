@@ -11,8 +11,8 @@
 # USAGE
 #   > Rscript Scripts/run_cross_sectional.R
 #     or source("Scripts/run_cross_sectional.R") from RStudio
-#   > LDL_SCHEME=ncep3 Rscript Scripts/run_cross_sectional.R  -- 3-group sensitivity run
-#     (writes to Outputs/cross_sectional_ldl3; the primary outputs are untouched)
+#   > LDL_SCHEME=ncep5 Rscript Scripts/run_cross_sectional.R  -- 5-group sensitivity run
+#     (writes to Outputs/cross_sectional_ldl5; the primary outputs are untouched)
 # NOTES
 #   > Writes to cfg$paths$cross_sectional (gitignored Outputs/).
 #############################
@@ -72,6 +72,8 @@ message("cross_sectional:: !> Baseline n by LDL-C group: ",
 message("cross_sectional:: !> Kruskal-Wallis + Dunn tests")
 tests <- compare_ldl_groups(data = baseline, outcomes = cfg$cross_sectional$outcomes,
                             group_col = "ldl_group", p_adjust = cfg$cross_sectional$p_adjust)
+tests$kruskal$role <- unname(cfg$cross_sectional$outcome_roles[tests$kruskal$outcome])
+tests$dunn$role    <- unname(cfg$cross_sectional$outcome_roles[tests$dunn$outcome])
 utils::write.csv(x = tests$kruskal, file = file.path(out_dir, "kruskal_wallis.csv"), row.names = FALSE)
 utils::write.csv(x = tests$dunn, file = file.path(out_dir, "dunn_pairwise.csv"), row.names = FALSE)
 

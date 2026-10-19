@@ -11,8 +11,8 @@
 # USAGE
 #   > Rscript Scripts/run_longitudinal.R
 #     or source("Scripts/run_longitudinal.R") from RStudio
-#   > LDL_SCHEME=ncep3 Rscript Scripts/run_longitudinal.R  -- 3-group sensitivity run
-#     (writes to Outputs/longitudinal_ldl3; the primary outputs are untouched)
+#   > LDL_SCHEME=ncep5 Rscript Scripts/run_longitudinal.R  -- 5-group sensitivity run
+#     (writes to Outputs/longitudinal_ldl5; the primary outputs are untouched)
 # NOTES
 #   > Writes to cfg$paths$longitudinal (gitignored Outputs/).
 #############################
@@ -75,6 +75,7 @@ for (model_name in model_names) {
 
 # Sample sizes ####
 model_n <- data.frame(model    = names(fits),
+                      role     = vapply(cfg$longitudinal$models[names(fits)], function(x) x$role, character(1)),
                       formula  = vapply(fits, function(x) x$formula, character(1)),
                       n_obs    = vapply(fits, function(x) x$n_obs, integer(1)),
                       n_groups = vapply(fits, function(x) as.integer(x$n_groups[[1]]), integer(1)),

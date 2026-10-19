@@ -16,15 +16,21 @@ written to the gitignored `Outputs/` until deliberately promoted.
 
 | ID | Decision | Status |
 |---|---|---|
-| D-001 | LDL-C clinical categories (NCEP ATP III, mmol/L) | DECIDED (inherited, 2026-09-23) |
+| D-001 | LDL-C clinical categories (NCEP ATP III, mmol/L) | SUPERSEDED as primary by D-006 (2026-10-19); kept as sensitivity |
 | D-002 | Repository layout and data handling (STYLE v2.1) | DECIDED 2026-09-23 |
-| D-003 | 3-group LDL-C scheme as a sensitivity axis | DECIDED 2026-09-23 |
+| D-003 | 3-group LDL-C scheme as a sensitivity axis | SUPERSEDED by D-006 (2026-10-19) |
+| D-004 | Censored CSF Aβ42 `">1700"` set to 1700 | DECIDED 2026-10-19 |
+| D-005 | Exclude participants with LDL-C < 0.04 mmol/L | DECIDED 2026-10-19 |
+| D-006 | Primary exposure: continuous LDL-C and 3 groups | DECIDED 2026-10-19 |
+| D-007 | Primary outcome mPACCtrailsB; CSF p-tau and Aβ42 secondary | DECIDED 2026-10-19 |
 
 ---
 
 ## D-001 — LDL-C clinical categories
 
-- **Status:** DECIDED (inherited from `Code_LDL_cutoffs.R`, recorded 2026-09-23).
+- **Status:** SUPERSEDED as primary by D-006 (2026-10-19). The 5-group scheme stays as a
+  sensitivity run (`LDL_SCHEME=ncep5`, `Outputs/*_ldl5`). Originally DECIDED (inherited
+  from `Code_LDL_cutoffs.R`, recorded 2026-09-23).
 - **Decision:** LDL-C (mmol/L) is binned into five left-closed intervals:
   Optimal `<2.6`, Near optimal `[2.6, 3.3)`, Borderline high `[3.3, 4.1)`,
   High `[4.1, 4.9)`, Very high `≥4.9`. Reference level: Optimal.
@@ -54,7 +60,8 @@ written to the gitignored `Outputs/` until deliberately promoted.
 
 ## D-003 — 3-group LDL-C scheme as a sensitivity axis
 
-- **Status:** DECIDED 2026-09-23 (requested by Braian: "3 cut-offs instead of 5").
+- **Status:** SUPERSEDED by D-006 (2026-10-19): `ncep3` is now primary, not a sensitivity
+  run. Originally DECIDED 2026-09-23 (requested by Braian: "3 cut-offs instead of 5").
 - **Decision:** add scheme `ncep3`: Optimal `<2.6`, Near optimal `[2.6, 3.3)`,
   Borderline high or above `≥3.3` mmol/L. It runs with `LDL_SCHEME=ncep3` and writes to
   `Outputs/*_ldl3`. It never overwrites the primary 5-group outputs (D-001). Only the
@@ -65,3 +72,57 @@ written to the gitignored `Outputs/` until deliberately promoted.
   - The cut-points stay NCEP ones, keeping comparability with the primary. Tertiles were rejected as sample-specific.
   - Continuous LDL-C beats every categorisation on AIC/BIC for all three outcomes, and a 3-df spline does not beat a linear term. This argues for continuous LDL-C as the eventual primary exposure; that question stays open in `grilling.md`.
 - **cfg:** `ldl_schemes$ncep3`, selected by env var `LDL_SCHEME`; `cfg$ldl$is_primary`.
+
+## D-004 — Censored CSF Aβ42 `">1700"` set to 1700
+
+- **Status:** DECIDED 2026-10-19 (Braian).
+- **Decision:** the longitudinal `ABETA` string `">1700"` is set to the assay upper limit,
+  1700, instead of being coerced to NA. The lower-limit strings (`ABETA` `"<200"`, n = 1;
+  `PTAU` `"<8"`, n = 7) are not covered by this decision: they still become NA, with a
+  warning, until Braian decides them (open in `grilling.md`).
+- **Rationale:** the longitudinal `ABETA` column held 161 `">1700"` values. Coercing them
+  to NA dropped them from the Aβ42 models, and 160 of the 161 belong to A− participants
+  (100 of 253 A− participants had at least one), so the missingness was informative and
+  removed the most amyloid-negative observations. Setting them to 1700 also matches the
+  baseline column `ABETA_bl_to_use`, which is already capped at 1700. This is single-value
+  imputation at the limit, not a censored (tobit) model; the Aβ42 estimates near the
+  ceiling are therefore conservative.
+- **cfg:** `cfg$cohort$censored_values`.
+
+## D-005 — Exclude participants with LDL-C < 0.04 mmol/L
+
+- **Status:** DECIDED 2026-10-19 (Braian; his message read "<0,004", clarified to 0.04
+  because no value lies below 0.004).
+- **Decision:** participants whose `CLINICAL_LDL_C` is below 0.04 mmol/L are excluded.
+  LDL-C is a single value per participant, carried to every visit, so the exclusion
+  removes the whole participant: 5 participants, 29 visits (1 of the 5 is A+).
+- **Rationale:** the five values (0.0239, 0.0244, 0.0275, 0.0278, 0.0313 mmol/L) are
+  physiologically implausible and most likely entry or unit errors; the next value is
+  0.139. The cohort becomes 342 participants.
+- **cfg:** `cfg$cohort$min_ldl`.
+
+## D-006 — Primary exposure: continuous LDL-C and 3 groups
+
+- **Status:** DECIDED 2026-10-19 (Braian). Supersedes D-003 and the primary status of D-001.
+- **Decision:** the primary exposures are continuous LDL-C (mmol/L) and the 3-group scheme
+  `ncep3` (Optimal `<2.6`, Near optimal `[2.6, 3.3)`, Borderline high or above `≥3.3`).
+  `ncep3` is the default scheme and writes to the unsuffixed `Outputs/` directories. The
+  5-group scheme `ncep5` (D-001) becomes a sensitivity run: `LDL_SCHEME=ncep5`, written to
+  `Outputs/*_ldl5`.
+- **Rationale:** continuous LDL-C has the best AIC and BIC for all three outcomes, and a
+  3-df spline does not beat the linear term. Collapsing 5 to 3 groups costs no fit
+  (likelihood-ratio p = 0.89–0.99), while High (n = 8) and Very high (n = 3) are too sparse
+  to estimate. The 3-group cut-points remain NCEP ones (D-003, `AUDIT_202609.md` § 2).
+- **cfg:** `ldl_schemes$ncep3` (empty `suffix`), the `LDL_SCHEME` default, and the
+  `exposure` field of `cfg$longitudinal$models`.
+
+## D-007 — Primary outcome mPACCtrailsB; CSF p-tau and Aβ42 secondary
+
+- **Status:** DECIDED 2026-10-19 (Braian).
+- **Decision:** cognition (mPACCtrailsB) is the primary outcome, in both the baseline and
+  the longitudinal stage. CSF p-tau and CSF Aβ42 are secondary outcomes.
+- **Rationale:** pre-specifying one primary outcome limits the multiple-testing burden
+  (`AUDIT_202609.md` § 4, Medium). The secondary outcomes are reported as supporting
+  evidence, not as independent confirmatory tests.
+- **cfg:** `cfg$cross_sectional$outcome_roles` and the `role` field of each entry of
+  `cfg$longitudinal$models`; both are written into the output tables.
